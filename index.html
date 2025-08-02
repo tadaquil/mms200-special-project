@@ -318,7 +318,20 @@
             videoPlayed = true;
         });
 
+
+        function goFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => { });
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        }
+
         startBtn.addEventListener('click', () => {
+            goFullscreen();
             clickSound.currentTime = 0;
             clickSound.play().catch(() => { });
             intro.style.display = 'none';
