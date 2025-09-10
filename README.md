@@ -3,8 +3,7 @@ Study with Huna is an Augmented Reality (AR) study app designed to help students
 
 Link to project: http://studywithhuna.online
 
-How It's Made:
-Tech used: HTML, CSS, JavaScript, A-Frame (three.js), AR.js, aframe-extras.loaders, Hostinger
+How It's Made: HTML, CSS, JavaScript, A-Frame (three.js), AR.js, aframe-extras.loaders, Hostinger
 
 Architecture
 * Multi-page, static: one HTML per part.
