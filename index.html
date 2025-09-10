@@ -1,0 +1,545 @@
+<html>
+<head>
+  <meta content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" name="viewport" />
+  <title>Study with Huna</title>
+  <meta property="og:title" content="Study with Huna">
+  <meta property="og:image" content="assets/study-w-huna.png">
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.loaders.min.js"></script>
+
+  <!-- Preload (Section 1 intro/dialogue only) -->
+  <link rel="preload" href="section1/s1-opt2-yes1.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes2.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes3.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes4.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes5.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes6.png" as="image">
+  <link rel="preload" href="section1/s1-opt2-yes7.png" as="image">
+  <link rel="preload" href="section1/s1-opt1-no.png" as="image">
+  <link rel="preload" href="section1/s1-dialogue1.png" as="image">
+  <link rel="preload" href="section1/s1-dialogue2.png" as="image">
+  <link rel="preload" href="section1/s1-dialogue3.png" as="image">
+
+  <link rel="preload" href="assets/bg-music.png" as="image">
+  <link rel="preload" href="assets/gameplay-music.png" as="image">
+  <link rel="preload" href="assets/exit-button.png" as="image">
+  <link rel="preload" href="assets/activity-button.png" as="image">
+  <link rel="preload" href="assets/rotate-vid.gif" as="image">
+  <link rel="preload" href="assets/rotate-text.png" as="image">
+  <link rel="preload" href="assets/start-button.png" as="image">
+  <link rel="preload" href="assets/next-button.png" as="image">
+  <link rel="preload" href="assets/okay-button.png" as="image">
+  <link rel="preload" href="section1/section-1-home.png" as="image">
+
+  <style>
+    body { margin:0; overflow:hidden; background:transparent; }
+
+    #videoContainer, #introContainer {
+      position:fixed; inset:0; display:none;
+      justify-content:center; align-items:center; flex-direction:column;
+      z-index:1000; background:transparent; pointer-events:auto;
+    }
+    #rotateGif, #rotateText { max-width:90vw; max-height:90vh; object-fit:contain; }
+    #doneBtn { position:absolute; bottom:5vh; width:40vw; max-width:170px; cursor:pointer; display:none; }
+
+    #homeImage { width:55vw; max-width:90vw; height:auto; margin-top:10vh; }
+    #startBtn { width:30vw; max-width:50vw; cursor:pointer; margin-bottom:10vh; }
+
+    #sceneContainer {
+      position:fixed; inset:0; display:none; flex-direction:row;
+      justify-content:space-between; align-items:center; z-index:1000; pointer-events:none;
+    }
+    #leftPanel { width:58vw; height:100vh; display:flex; justify-content:center; align-items:center; pointer-events:none; }
+    #rightPanel { width:42vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; pointer-events:auto; padding:2vh 2vw; }
+
+    /* Option buttons */
+    #option2Img, #option1Img { width:70%; height:auto; display:none; }
+
+    #iWantToImg { width:60%; height:auto; display:none; }
+
+    img[src$="section1/s1-opt1-no2.png"] { width:110%; height:auto; }
+
+    #nextBtn { width:40vw; max-width:150px; cursor:pointer; display:none; }
+
+    a-scene { position:absolute; top:0; left:0; z-index:0; }
+
+    #musicIcons { position:fixed; top:10px; left:10px; display:flex; gap:10px; z-index:1001; }
+    #exitButton { position:fixed; top:10px; right:10px; width:55px; height:auto; z-index:1001; cursor:pointer; display:none; }
+    .music-icon { width:55px; height:auto; cursor:pointer; }
+
+    #scanMarkerPrompt { display:none; position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; z-index:2500; }
+
+    #activityButton { position:fixed; bottom:10px; left:10px; height:55px; width:auto; z-index:1001; display:none; }
+
+    #loadingScreen { position:fixed; inset:0; background:#fbead1; display:flex; justify-content:center; align-items:center; z-index:3000; }
+    #loadingScreen img { width:100%; height:auto; object-fit:contain; }
+
+    /* Bottom dock so AR area stays clean */
+    #ctaDock {
+      position:fixed; bottom:2.5vh; right:3.5vw; width:42vw; max-width:50vw;
+      display:flex; flex-direction:column; align-items:center; gap:1.5vh; z-index:1002; pointer-events:auto;
+    }
+  </style>
+</head>
+
+<body>
+  <img id="scanMarkerPrompt" src="assets/scan_marker.png" alt="Scan the marker" />
+  <div id="loadingScreen"><img src="assets/loading.gif" alt="Loading..." /></div>
+
+  <!-- Audio (intro/dialogue only) -->
+  <audio id="bgMusic" loop src="sfx/bg-music.mp3"></audio>
+  <audio id="clickSound" src="sfx/button-click.mp3"></audio>
+  <audio id="dialogueAudio" src="narration/section1/s1-dialogue1.mp3"></audio>
+  <audio id="dialogueAudio2" src="narration/section1/s1-dialogue2.mp3"></audio>
+  <audio id="dialogueAudio3" src="narration/section1/s1-dialogue3.mp3"></audio>
+  <audio id="opt2YesAudio" src="narration/section1/s1-opt2-yes1.mp3"></audio>
+  <audio id="opt1NoAudio" src="narration/section1/s1-opt1-no.mp3"></audio>
+  <audio id="opt2YesAudio2" src="narration/section1/s1-opt2-yes2.mp3"></audio>
+  <audio id="opt2YesAudio3" src="narration/section1/s1-opt2-yes3.mp3"></audio>
+  <audio id="opt2YesAudio4" src="narration/section1/s1-opt2-yes4.mp3"></audio>
+  <audio id="highScoreSound" src="sfx/high-score.mp3"></audio>
+  <audio id="failScoreSound" src="sfx/fail-score.mp3"></audio>
+  <audio id="opt2YesAudio5" src="narration/section1/s1-opt2-yes5.mp3"></audio>
+  <audio id="opt2YesAudio6" src="narration/section1/s1-opt2-yes6.mp3"></audio>
+  <audio id="opt2YesAudio7" src="narration/section1/s1-opt2-yes7.mp3"></audio>
+
+  <!-- Music Icons -->
+  <div id="musicIcons" style="display:none;">
+    <img alt="BG Music" class="music-icon" id="bgMusicIcon" src="assets/bg-music.png" />
+    <img alt="Gameplay Music" class="music-icon" id="gameplayMusicIcon" src="assets/gameplay-music.png" />
+  </div>
+
+  <!-- Exit & Activity -->
+  <img alt="Exit Button" id="exitButton" src="assets/exit-button.png" />
+  <img alt="Activity Button" id="activityButton" src="assets/activity-button.png" />
+
+  <!-- Rotate + Intro -->
+  <div id="videoContainer">
+    <img alt="Rotate GIF" id="rotateGif" src="assets/rotate-vid.gif" />
+    <img alt="Rotate Text" id="rotateText" src="assets/rotate-text.png" />
+    <img alt="Done Button" id="doneBtn" src="assets/okay-button.png" />
+  </div>
+  <div id="introContainer">
+    <img alt="Home" id="homeImage" src="section1/section-1-home.png" />
+    <img alt="Start Button" id="startBtn" src="assets/start-button.png" />
+  </div>
+
+  <!-- UI / Scene -->
+  <div id="sceneContainer">
+    <div id="leftPanel"></div>
+    <div id="rightPanel"></div>
+  </div>
+
+  <!-- Bottom dock -->
+  <div id="ctaDock">
+    <img alt="Option 2" id="option2Img" src="section1/s1-option2.png" />
+    <img alt="Option 1" id="option1Img" src="section1/s1-option1.png" />
+    <img alt="I Want To" id="iWantToImg" src="section1/i-want-to.png" style="display:none;" />
+    <img alt="Next" id="nextBtn" src="assets/next-button.png" />
+  </div>
+
+  <a-scene arjs embedded renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;">
+    <a-assets>
+      <a-asset-item id="model1" src="models/marker/waving.glb"></a-asset-item>
+      <a-asset-item id="model2" src="models/marker/talking.glb"></a-asset-item>
+      <a-asset-item id="model3" src="models/marker/sad.glb"></a-asset-item>
+      <a-asset-item id="modelCheer" src="models/marker/cheering.glb"></a-asset-item>
+    </a-assets>
+
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.0"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 1.0" position="1 2 1"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="-1 2 -1"></a-entity>
+
+    <a-marker id="marker1" type="pattern" url="models/marker/huna-marker1.patt">
+      <a-entity id="markerAnchor"></a-entity>
+    </a-marker>
+
+    <a-entity id="standGroup" position="0 0 0" rotation="-90 0 0" visible="false" follow-marker="marker: #marker1">
+
+      <!-- Model -->
+      <a-entity id="modelFacing" rotation="0 0 0">
+        <a-entity id="modelHolder" position="-0.85 -1.15 0">
+          <a-entity id="modelEntity1"
+                    gltf-model="#model1"
+                    animation-mixer
+                    position="0 0 0"
+                    rotation="0 0 0"
+                    scale="1.55 1.66 1.55"
+                    visible="true"></a-entity>
+        </a-entity>
+      </a-entity>
+
+      <!-- Dialogue plane (AR PNG) -->
+      <a-plane id="dialoguePlane"
+               position="1.0 1.0 0"
+               width="2.0"
+               height="1.3"
+               rotation="0 0 0"
+               material="shader: flat; color: #FFF; transparent:true; src: section1/s1-dialogue1.png; side:double; alphaTest:0.01"
+               ui-texture-correct
+               visible="true"></a-plane>
+    </a-entity>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // PNG color controls
+    AFRAME.registerComponent('ui-texture-correct', {
+      init: function () {
+        const el = this.el;
+        const apply = () => {
+          const mesh = el.getObject3D('mesh');
+          if (!mesh) return;
+          const mat = mesh.material;
+          if (mat && 'toneMapped' in mat) { mat.toneMapped = false; mat.needsUpdate = true; }
+          if (mat && mat.map) {
+            if (THREE.SRGBColorSpace) {
+              if (mat.map.colorSpace !== THREE.SRGBColorSpace) mat.map.colorSpace = THREE.SRGBColorSpace;
+            } else if (THREE.sRGBEncoding) {
+              if (mat.map.encoding !== THREE.sRGBEncoding) mat.map.encoding = THREE.sRGBEncoding;
+            }
+            mat.map.needsUpdate = true;
+          }
+        };
+        el.addEventListener('object3dset', apply);
+        el.addEventListener('model-loaded', apply);
+        el.addEventListener('materialtextureloaded', apply);
+        setTimeout(apply, 0);
+      }
+    });
+
+    // AR elements rotation and position
+    AFRAME.registerComponent('follow-marker', {
+      schema: { marker: { type: 'selector' } },
+      tick: function () {
+        const mEl = this.data.marker;
+        if (!mEl) return;
+        const m = mEl.object3D;
+        const o = this.el.object3D;
+        if (!m || !o) return;
+
+        // Copy world position/scale to be robust
+        m.updateMatrixWorld();
+        const wp = new THREE.Vector3();
+        m.getWorldPosition(wp);
+        o.position.copy(wp);
+
+        const ws = new THREE.Vector3();
+        m.getWorldScale(ws);
+        o.scale.copy(ws);
+
+        // Lock rotation to straight front-facing
+        o.rotation.set(0, 0, 0);
+      }
+    });
+
+    // Element references
+    const bgMusic = document.getElementById('bgMusic');
+    const clickSound = document.getElementById('clickSound');
+    const dialogueAudio = document.getElementById('dialogueAudio');
+    const dialogueAudio2 = document.getElementById('dialogueAudio2');
+    const dialogueAudio3 = document.getElementById('dialogueAudio3');
+    const opt2YesAudio = document.getElementById('opt2YesAudio');
+    const opt1NoAudio = document.getElementById('opt1NoAudio');
+    const opt2YesAudio2 = document.getElementById('opt2YesAudio2');
+    const opt2YesAudio3 = document.getElementById('opt2YesAudio3');
+    const opt2YesAudio4 = document.getElementById('opt2YesAudio4');
+    const highScoreSound = document.getElementById('highScoreSound');
+    const failScoreSound = document.getElementById('failScoreSound');
+    const opt2YesAudio5 = document.getElementById('opt2YesAudio5');
+    const opt2YesAudio6 = document.getElementById('opt2YesAudio6');
+    const opt2YesAudio7 = document.getElementById('opt2YesAudio7');
+
+    highScoreSound.volume = clickSound.volume * 0.5;
+    failScoreSound.volume = clickSound.volume * 0.5;
+
+    const bgMusicIcon = document.getElementById('bgMusicIcon');
+    const gameplayMusicIcon = document.getElementById('gameplayMusicIcon');
+
+    const musicIcons = document.getElementById('musicIcons');
+    const exitButton = document.getElementById('exitButton');
+
+    const videoContainer = document.getElementById('videoContainer');
+    const doneBtn = document.getElementById('doneBtn');
+    const intro = document.getElementById('introContainer');
+    const startBtn = document.getElementById('startBtn');
+    const marker = document.getElementById('marker1');
+    const sceneContainer = document.getElementById('sceneContainer');
+    const nextBtn = document.getElementById('nextBtn');
+    const option1Img = document.getElementById('option1Img');
+    const iWantToImg = document.getElementById('iWantToImg');
+    const option2Img = document.getElementById('option2Img');
+    const standGroup = document.getElementById('standGroup');
+    const modelHolder = document.getElementById('modelHolder');
+    const dialoguePlane = document.getElementById('dialoguePlane');
+    const scanPrompt = document.getElementById('scanMarkerPrompt');
+    const ctaDock = document.getElementById('ctaDock');
+    const activityButton = document.getElementById('activityButton');
+    const loadingScreen = document.getElementById('loadingScreen');
+
+    let model = document.getElementById('modelEntity1');
+    function setModel(modelId) {
+      if (model) modelHolder.removeChild(model);
+      const newModel = document.createElement('a-entity');
+      newModel.setAttribute('id', 'modelEntity1');
+      newModel.setAttribute('gltf-model', modelId);
+      newModel.setAttribute('position', '0 0 0');
+      newModel.setAttribute('rotation', '0 0 0');
+      newModel.setAttribute('scale', '0.55 0.66 0.55');
+      newModel.setAttribute('animation-mixer', '');
+      newModel.setAttribute('visible', 'true');
+      modelHolder.appendChild(newModel);
+      model = newModel;
+    }
+
+    let markerVisible = false;
+    let musicStarted = false;
+    let isGameplayMuted = false;
+    let appClosed = false; // block any UI from reappearing after exit
+
+    const dialogues = ['section1/s1-dialogue1.png', 'section1/s1-dialogue2.png', 'section1/s1-dialogue3.png'];
+    const models = ['#model1', '#model2', '#model2'];
+    let dialogueIndex = 0;
+
+    // Marker events
+    marker.addEventListener('markerFound', () => {
+      if (appClosed) return;
+      const prompt = scanPrompt;
+      if (prompt) prompt.style.display = 'none';
+
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) { elem.requestFullscreen(); }
+      else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+      else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+
+      if (!musicStarted) {
+        bgMusic.volume = 0.1;
+        bgMusic.play().catch(() => {});
+        musicStarted = true;
+      }
+
+      if (!markerVisible) {
+        markerVisible = true;
+        intro.style.display = 'flex';
+      }
+    });
+
+    // Buttons
+    const playClick = () => { try { clickSound.currentTime = 0; clickSound.play(); } catch (e) {} };
+
+    doneBtn.addEventListener('click', () => {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) { elem.requestFullscreen().catch(() => {}); }
+      else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+      else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+      playClick();
+      videoContainer.style.display = 'none';
+      doneBtn.style.display = 'none';
+      if (scanPrompt) scanPrompt.style.display = 'block';
+    });
+
+    startBtn.addEventListener('click', () => {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) { elem.requestFullscreen(); }
+      else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+      else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+      playClick();
+      intro.style.display = 'none';
+      sceneContainer.style.display = 'flex';
+      musicIcons.style.display = 'flex';
+      exitButton.style.display = 'block';
+      standGroup.setAttribute('visible', 'true');
+      updateDialogueAndModel();
+    });
+
+    nextBtn.addEventListener('click', () => {
+      playClick();
+      stopDialogueAudio();
+
+      const currentSrc = dialoguePlane.getAttribute('material').src || '';
+
+      if (currentSrc.includes('s1-opt2-yes6.png')) {
+        setDialoguePlane('section1/s1-opt2-yes7.png');
+        opt2YesAudio7.play().catch(() => {});
+        nextBtn.src = "assets/okay-button.png";
+        return;
+      }
+      if (currentSrc.includes('s1-opt2-yes7.png')) {
+        window.location.href = 's1-learnmore.html';
+        return;
+      }
+      if (currentSrc.includes('s1-opt2-yes5.png')) {
+        setDialoguePlane('section1/s1-opt2-yes6.png'); opt2YesAudio6.play().catch(() => {}); return;
+      }
+      if (currentSrc.includes('s1-opt2-yes4.png')) {
+        setDialoguePlane('section1/s1-opt2-yes5.png'); opt2YesAudio5.play().catch(() => {}); return;
+      }
+      if (currentSrc.includes('s1-opt2-yes3.png')) {
+        setDialoguePlane('section1/s1-opt2-yes4.png'); opt2YesAudio4.play().catch(() => {}); return;
+      }
+      if (currentSrc.includes('s1-opt2-yes2.png')) {
+        setDialoguePlane('section1/s1-opt2-yes3.png'); opt2YesAudio3.play().catch(() => {}); return;
+      }
+      if (currentSrc.includes('s1-opt2-yes1.png')) {
+        setModel('#model2');
+        setDialoguePlane('section1/s1-opt2-yes2.png');
+        opt2YesAudio2.play().catch(() => {}); return;
+      }
+
+      if (dialogueIndex < dialogues.length - 1) {
+        dialogueIndex++;
+        updateDialogueAndModel();
+      }
+    });
+
+    function setDialoguePlane(src) {
+      dialoguePlane.setAttribute('material', {
+        shader:'flat', color:'#FFF', transparent:true, side:'double', alphaTest:0.01, src
+      });
+      dialoguePlane.emit('materialtextureloaded', {});
+    }
+
+    option1Img.addEventListener('click', () => {
+      playClick(); stopDialogueAudio(); opt1NoAudio.play().catch(() => {});
+      setDialoguePlane('section1/s1-opt1-no.png');
+      failScoreSound.currentTime = 0; failScoreSound.play().catch(() => {});
+      option1Img.style.display = 'none';
+      option2Img.style.display = 'none';
+      iWantToImg.style.display = 'block';
+      setModel('#model3'); // sad
+    });
+
+    option2Img.addEventListener('click', () => {
+      playClick(); stopDialogueAudio(); opt2YesAudio.play().catch(() => {});
+      setDialoguePlane('section1/s1-opt2-yes1.png');
+      highScoreSound.currentTime = 0; highScoreSound.play().catch(() => {});
+      option1Img.style.display = 'none';
+      option2Img.style.display = 'none';
+      nextBtn.style.display = 'inline-block';
+      setModel('#modelCheer'); // cheering
+    });
+
+    iWantToImg.addEventListener('click', () => {
+      playClick(); stopDialogueAudio();
+      setDialoguePlane('section1/s1-opt2-yes1.png');
+      option1Img.style.display = 'none';
+      option2Img.style.display = 'none';
+      iWantToImg.style.display = 'none';
+      nextBtn.style.display = 'inline-block';
+      setModel('#modelCheer');
+      opt2YesAudio.play().catch(() => {});
+    });
+
+    // Exit button controls
+    exitButton.addEventListener('click', () => {
+      playClick();
+      appClosed = true;
+
+      // stop audio
+      try { bgMusic.pause(); bgMusic.currentTime = 0; } catch(e){}
+      try { clickSound.pause(); clickSound.currentTime = 0; } catch(e){}
+      stopDialogueAudio();
+      musicStarted = false;
+      markerVisible = false;
+      isGameplayMuted = false;
+      dialogueIndex = 0;
+
+      // exit fullscreen
+      const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+      if (exitFS) { try { exitFS.call(document); } catch(e){} }
+
+      // Hide EVERYTHING
+      const hide = (el) => { if (el) el.style.display = 'none'; };
+      hide(videoContainer);
+      hide(intro);
+      hide(sceneContainer);
+      hide(musicIcons);
+      hide(exitButton);
+      hide(option1Img);
+      hide(option2Img);
+      hide(iWantToImg);
+      hide(nextBtn);
+      hide(ctaDock);
+      hide(activityButton);
+      hide(scanPrompt);
+      hide(loadingScreen);
+
+      // Reset AR/visuals
+      try { standGroup.setAttribute('visible', 'false'); } catch(e){}
+      setModel('#model1');
+      setDialoguePlane('section1/s1-dialogue1.png');
+
+      // Reset icons
+      bgMusicIcon.src = 'assets/bg-music.png';
+      gameplayMusicIcon.src = 'assets/gameplay-music.png';
+
+      // Add a transparent blocker to guarantee a blank screen and swallow taps
+      let blocker = document.getElementById('exitBlocker');
+      if (!blocker) {
+        blocker = document.createElement('div');
+        blocker.id = 'exitBlocker';
+        blocker.style.position = 'fixed';
+        blocker.style.inset = '0';
+        blocker.style.zIndex = '9999';
+        blocker.style.background = 'transparent';
+        blocker.style.pointerEvents = 'auto';
+        document.body.appendChild(blocker);
+      }
+    });
+
+    // Music icon toggles
+    bgMusicIcon.addEventListener('click', () => {
+      playClick();
+      const isMuted = bgMusicIcon.src.includes('mute-bg-music.png');
+      if (isMuted) { bgMusicIcon.src = 'assets/bg-music.png'; bgMusic.play().catch(() => {}); }
+      else { bgMusicIcon.src = 'assets/mute-bg-music.png'; bgMusic.pause(); }
+    });
+
+    gameplayMusicIcon.addEventListener('click', () => {
+      playClick();
+      const isMuted = gameplayMusicIcon.src.includes('mute-gameplay-music.png');
+      isGameplayMuted = !isMuted;
+      const allDialogueAudios = [dialogueAudio, dialogueAudio2, dialogueAudio3, opt2YesAudio, opt2YesAudio2, opt2YesAudio3, opt2YesAudio4, opt2YesAudio5, opt2YesAudio6, opt2YesAudio7, opt1NoAudio];
+      allDialogueAudios.forEach(a => a.muted = isGameplayMuted);
+      gameplayMusicIcon.src = isMuted ? 'assets/gameplay-music.png' : 'assets/mute-gameplay-music.png';
+    });
+
+    function stopDialogueAudio() {
+      [dialogueAudio, dialogueAudio2, dialogueAudio3, opt2YesAudio, opt1NoAudio, opt2YesAudio2, opt2YesAudio3, opt2YesAudio4, opt2YesAudio5, opt2YesAudio6, opt2YesAudio7]
+        .forEach(a => { a.pause(); a.currentTime = 0; });
+    }
+
+    function updateDialogueAndModel() {
+      nextBtn.style.display = 'inline-block';
+      setModel(models[dialogueIndex]);
+      const src = dialogues[dialogueIndex];
+      setDialoguePlane(src);
+      stopDialogueAudio();
+      if (dialogueIndex === 0) { dialogueAudio.play().catch(() => {}); }
+      else if (dialogueIndex === 1) { dialogueAudio2.play().catch(() => {}); }
+      else if (dialogueIndex === 2) {
+        dialogueAudio3.play().catch(() => {});
+        nextBtn.style.display = 'none';
+        option1Img.style.display = 'block';
+        option2Img.style.display = 'block';
+      }
+    }
+
+    // Loader
+    window.addEventListener('load', () => {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      // Show rotate page first (new flow)
+      videoContainer.style.display = 'flex';
+      setTimeout(() => doneBtn.style.display = 'block', 3000);
+    });
+
+    // Redirect to activity page
+    activityButton.addEventListener('click', () => {
+      playClick();
+      window.location.href = 's1-activity-latest.html';
+    });
+  </script>
+</body>
+</html>

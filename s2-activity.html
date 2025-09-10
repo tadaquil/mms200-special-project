@@ -1,0 +1,530 @@
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"/>
+
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.loaders.min.js"></script>
+
+  <!-- Preloads -->
+  <link rel="preload" as="image" href="assets/are-you-ready.png"/>
+  <link rel="preload" as="image" href="assets/if-you-feel.png"/>
+  <link rel="preload" as="image" href="assets/good-luck.png"/>
+  <link rel="preload" as="image" href="assets/next-button.png"/>
+  <link rel="preload" as="image" href="assets/start-button.png"/>
+  <link rel="preload" as="image" href="assets/exit-button.png"/>
+  <link rel="preload" as="image" href="assets/bg-music.png"/>
+  <link rel="preload" as="image" href="assets/gameplay-music.png"/>
+  <link rel="preload" as="image" href="assets/s2-activity-home.png"/>
+  <link rel="preload" as="image" href="assets/landscape-loading.gif"/>
+  <link rel="preload" as="image" href="assets/oh-no.png"/>
+  <link rel="preload" as="image" href="assets/good-try.png"/>
+  <link rel="preload" as="image" href="assets/great-try.png"/>
+  <link rel="preload" as="image" href="assets/perfect-score.png"/>
+  <link rel="preload" as="audio" href="sfx/fail-score.mp3"/>
+  <link rel="preload" as="audio" href="sfx/high-score.mp3"/>
+  <link rel="preload" as="image" href="assets/end-message.png"/>
+  <link rel="preload" as="audio" href="narration/repeat/ending-message.mp3"/>
+  <link rel="preload" as="image" href="assets/s3-proceed.png"/>
+  <link rel="preload" as="fetch" href="models/marker/waving.glb" crossorigin/>
+  <link rel="preload" as="image" href="assets/scan_marker.png"/>
+  <link rel="preload" as="audio" href="narration/repeat/are-you-ready.mp3"/>
+
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: transparent; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+
+    /* Scene/UI container */
+    #sceneContainer {
+      position: fixed; inset: 0; display: none;
+      flex-direction: row; justify-content: space-between; align-items: center;
+      z-index: 1000; pointer-events: none;
+    }
+    #leftPanel, #rightPanel {
+      width: 50vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto;
+    }
+
+    #activityImage { display: block; width: 90%; height: auto; max-height: 50vh; margin-bottom: 1vh; }
+    #nextBtn, #s3ProceedBtn { position: relative; margin-top: 1vh; align-self: center; z-index: 1000; width: 40vw; max-width: 150px; cursor: pointer; }
+    #s3ProceedBtn { display: none; }
+
+    a-scene { position: absolute; inset: 0; z-index: 0; }
+
+    #musicIcons { position: fixed; top: 10px; left: 10px; display: none; gap: 10px; z-index: 1001; }
+    .music-icon { width: 55px; height: auto; cursor: pointer; }
+    #exitButton { position: fixed; top: 10px; right: 10px; width: 55px; height: auto; z-index: 1001; cursor: pointer; display: none; }
+
+    /* Loading */
+    #loadingScreen { position: fixed; inset: 0; background: #fbead1; display: flex; justify-content: center; align-items: center; z-index: 3000; }
+    #loadingScreen img { width: 100%; height: auto; object-fit: contain; }
+
+    /* Pre-activity (transparent so camera shows behind) */
+    #preActivity {
+      position: fixed; inset: 0; background: transparent; display: none;
+      flex-direction: column; justify-content: center; align-items: center; gap: 12px; z-index: 2500; pointer-events: auto;
+    }
+    #homeImage { width: 70%; max-width: 780px; height: auto; max-height: 55vh; object-fit: contain; display: block; }
+    #startBtnHome { width: 38vw; max-width: 145px; height: auto; cursor: pointer; display: block; }
+
+    /* Score */
+    .score-image { width: 40vw; max-width: 260px; aspect-ratio: 1 / 1; height: auto; object-fit: contain; display: block; margin: 5px auto 8px; }
+
+    /* Scan prompt overlay */
+    #scanMarkerPrompt {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; object-fit: contain;
+      z-index: 2500; pointer-events: none; display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading -->
+  <div id="loadingScreen"><img src="assets/landscape-loading.gif" alt="Loading"/></div>
+
+  <!-- Pre-activity overlay -->
+  <div id="preActivity" aria-hidden="true">
+    <img id="homeImage" src="assets/s2-activity-home.png" alt="Activity Home"/>
+    <img id="startBtnHome" src="assets/start-button.png" alt="Start"/>
+  </div>
+
+  <!-- Scan marker -->
+  <img id="scanMarkerPrompt" src="assets/scan_marker.png" alt="Scan the marker"/>
+
+  <!-- Audio -->
+  <audio id="bgMusic" src="sfx/bg-music.mp3" loop></audio>
+  <audio id="clickSound" src="sfx/button-click.mp3"></audio>
+  <audio id="activityAudio2" src="narration/repeat/are-you-ready.mp3"></audio>
+  <audio id="ifYouFeelAudio" src="narration/repeat/if-you-feel.mp3"></audio>
+  <audio id="goodLuckAudio" src="narration/repeat/good-luck.mp3"></audio>
+  <audio id="sfxCorrect" src="sfx/correct-answer.mp3"></audio>
+  <audio id="sfxWrong" src="sfx/wrong-answer.mp3"></audio>
+  <audio id="sfxFail" src="sfx/fail-score.mp3"></audio>
+  <audio id="sfxHigh" src="sfx/high-score.mp3"></audio>
+  <audio id="endMessageAudio" src="narration/repeat/ending-message.mp3"></audio>
+
+  <!-- Music Icons -->
+  <div id="musicIcons">
+    <img id="bgMusicIcon" class="music-icon" src="assets/bg-music.png" alt="BG Music"/>
+    <img id="gameplayMusicIcon" class="music-icon" src="assets/gameplay-music.png" alt="Gameplay Music"/>
+  </div>
+
+  <!-- Exit -->
+  <img id="exitButton" src="assets/exit-button.png" alt="Exit"/>
+
+  <!-- UI / Scene -->
+  <div id="sceneContainer">
+    <div id="leftPanel"></div>
+    <div id="rightPanel">
+      <img id="activityImage" src="assets/are-you-ready.png" alt="Activity"/>
+      <img id="nextBtn" src="assets/next-button.png" alt="Next"/>
+      <img id="s3ProceedBtn" src="assets/s3-proceed.png" alt="Proceed to Section 3"/>
+    </div>
+  </div>
+
+  <a-scene embedded arjs renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;">
+    <a-assets>
+      <a-asset-item id="modelVictory" src="models/marker/victory-pose.glb"></a-asset-item>
+      <a-asset-item id="model2" src="models/marker/talking.glb"></a-asset-item>
+      <a-asset-item id="modelCheer" src="models/marker/cheering.glb"></a-asset-item>
+      <a-asset-item id="modelSad" src="models/marker/sad.glb"></a-asset-item>
+      <a-asset-item id="modelWaving" src="models/marker/waving.glb"></a-asset-item>
+    </a-assets>
+
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.0"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 1.0" position="1 2 1"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="-1 2 -1"></a-entity>
+
+    <!-- s2 pattern -->
+    <a-marker id="marker1" type="pattern" url="models/marker/s2-activity.patt">
+      <a-entity id="markerAnchor"></a-entity>
+    </a-marker>
+
+    <a-entity id="standGroup" follow-marker="marker: #marker1" position="0 0 0" rotation="-90 0 0">
+      <a-entity id="modelFacing">
+        <a-entity id="modelHolder" position="-0.85 -1.15 0">
+          <a-entity id="modelEntity1" gltf-model="#model2" animation-mixer position="0 0 0" rotation="0 0 0" scale="0.55 0.66 0.55" visible="false"></a-entity>
+        </a-entity>
+      </a-entity>
+    </a-entity>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+  (function () {
+
+    AFRAME.registerComponent('follow-marker', {
+      schema: { marker: { type: 'selector' } },
+      tick: function () {
+        const mEl = this.data.marker; if (!mEl) return;
+        const m = mEl.object3D, o = this.el.object3D; if (!m || !o) return;
+        m.updateMatrixWorld();
+        const wp = new THREE.Vector3(); m.getWorldPosition(wp); o.position.copy(wp);
+        const ws = new THREE.Vector3(); m.getWorldScale(ws); o.scale.copy(ws);
+        o.rotation.set(0, 0, 0);
+      }
+    });
+
+    // Shorthand DOM getters
+    const qs  = (s, r=document) => r.querySelector(s);
+    const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+    // Elements
+    const aAssets = qs('a-assets');
+    const loadingScreen   = qs('#loadingScreen');
+    const preActivity     = qs('#preActivity');
+    const startBtnHome    = qs('#startBtnHome');
+    const sceneContainer  = qs('#sceneContainer');
+    const musicIcons      = qs('#musicIcons');
+    const exitButton      = qs('#exitButton');
+    const rightPanel      = qs('#rightPanel');
+    const activityImg     = qs('#activityImage');
+    const nextBtn         = qs('#nextBtn');
+    const s3ProceedBtn    = qs('#s3ProceedBtn');
+    const modelHolder     = qs('#modelHolder');
+    let   model           = qs('#modelEntity1');
+
+    // Scan prompt & marker
+    const scanPrompt      = qs('#scanMarkerPrompt');
+    const markerEl        = qs('#marker1');
+    let   hasScanned      = false;
+
+    // Audio
+    const bgMusic         = qs('#bgMusic');
+    const clickSound      = qs('#clickSound');
+    const activityAudio2  = qs('#activityAudio2');
+    const ifYouFeelAudio  = qs('#ifYouFeelAudio');
+    const goodLuckAudio   = qs('#goodLuckAudio');
+    const sfxCorrect      = qs('#sfxCorrect');
+    const sfxWrong        = qs('#sfxWrong');
+    const sfxFail         = qs('#sfxFail');
+    const sfxHigh         = qs('#sfxHigh');
+    const endMessageAudio = qs('#endMessageAudio');
+    const bgMusicIcon     = qs('#bgMusicIcon');
+    const gameplayMusicIcon = qs('#gameplayMusicIcon');
+
+    // State
+    let isGameplayMuted = false;
+    let justSwitchedToGoodLuck = false;
+
+    // Score
+    const getScore = () => parseInt(sessionStorage.getItem('score') || '0', 10);
+    const setScore = v => sessionStorage.setItem('score', String(v));
+    const addPoint = () => setScore(getScore() + 1);
+
+    // Utils
+    const play = a => { try { a.currentTime = 0; return a.play().catch(()=>{}); } catch(_){} };
+    const pauseReset = a => { try { a.pause(); a.currentTime = 0; } catch(_){} };
+    const setMutedOn = (arr, muted) => arr.forEach(a => { if (a) a.muted = muted; });
+
+    function setModel(modelId) {
+      if (model) modelHolder.removeChild(model);
+      const e = document.createElement('a-entity');
+      e.id = 'modelEntity1';
+      e.setAttribute('gltf-model', modelId);
+      e.setAttribute('animation-mixer', '');
+      e.setAttribute('position', '0 0 0');
+      e.setAttribute('rotation', '0 0 0');
+      e.setAttribute('scale', '0.55 0.66 0.55');
+      e.setAttribute('visible', 'true');
+      modelHolder.appendChild(e);
+      model = e;
+    }
+    const replaceWithClone = node => (node.parentNode.replaceChild(node.cloneNode(true), node), node.parentNode.querySelector(`#${node.id}`) || node.parentNode.lastChild);
+
+    function enterFullscreen() {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (req) { try { req.call(el); } catch(_){} }
+    }
+    function startExperience() {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      if (preActivity) preActivity.style.display = 'flex';
+    }
+    function revealUI() {
+      sceneContainer.style.display = 'flex';
+      musicIcons.style.display = 'flex';
+      exitButton.style.display = 'block';
+    }
+    function beginActivity() {
+      // Hide prompt
+      if (scanPrompt) scanPrompt.style.display = 'none';
+      preActivity.style.display = 'none';
+      revealUI();
+      model.setAttribute('visible', 'true');
+      bgMusic.volume = 0.1;
+      play(bgMusic);
+      pauseReset(activityAudio2); pauseReset(ifYouFeelAudio); pauseReset(goodLuckAudio);
+      activityAudio2.muted = isGameplayMuted;
+      play(activityAudio2);
+      setScore(0);
+    }
+
+    // Loading
+    let ready = 0;
+    const markReady = () => { ready++; if (ready >= 2) startExperience(); };
+    window.addEventListener('load', markReady);
+    if (aAssets) { aAssets.hasLoaded ? markReady() : aAssets.addEventListener('loaded', markReady); } else { ready = 1; }
+
+    // Start -> show scan overlay; wait for marker, then begin
+    startBtnHome.addEventListener('click', () => {
+      play(clickSound);
+      enterFullscreen();
+      // Hide the pre-activity page and show scan prompt page
+      if (preActivity) preActivity.style.display = 'none';
+      if (scanPrompt) scanPrompt.style.display = 'block';
+    });
+
+    // When the AR marker is found the first time, proceed exactly as before
+    if (markerEl) {
+      markerEl.addEventListener('markerFound', () => {
+        if (hasScanned) return;
+        hasScanned = true;
+        beginActivity(); // continues the flow starting with "Are you ready?"
+      });
+    }
+
+    // SFX for answers
+    function playSfx(ok) { const a = ok ? sfxCorrect : sfxWrong; if (!a) return; a.muted = isGameplayMuted; play(a); }
+
+    // Next button flow for pre-quiz narration/images
+    nextBtn.addEventListener('click', () => {
+      play(clickSound);
+
+      const src = activityImg.getAttribute('src');
+      if (src.includes('assets/are-you-ready.png')) {
+        activityImg.src = 'assets/if-you-feel.png';
+        pauseReset(activityAudio2);
+        ifYouFeelAudio.muted = isGameplayMuted; play(ifYouFeelAudio);
+        return;
+      }
+      if (src.includes('assets/if-you-feel.png')) {
+        ifYouFeelAudio.muted = true;
+        activityImg.src = 'assets/good-luck.png';
+        nextBtn.src = 'assets/start-button.png';
+        justSwitchedToGoodLuck = true; setTimeout(() => { justSwitchedToGoodLuck = false; }, 0);
+        setModel('#modelVictory');
+        goodLuckAudio.muted = isGameplayMuted; play(goodLuckAudio);
+        return;
+      }
+      if (nextBtn.src.includes('assets/start-button.png') && !justSwitchedToGoodLuck) {
+        goodLuckAudio.muted = true;
+        setModel('#model2');
+        activityImg.style.transition = 'none';
+        activityImg.style.width = '80%';
+        activityImg.style.maxHeight = '32vh';
+
+        /* Q1 */
+        activityImg.src = 'section2/s2-question-1.png';
+        nextBtn.style.display = 'none';
+
+        // Render Q1 options
+        ['section2/s2-q1-optiona.png', 'section2/s2-q1-optionb.png', 'section2/s2-q1-optionc.png', 'section2/s2-q1-optiond.png'].forEach((src, i) => {
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = 'Option ' + String.fromCharCode(65 + i);
+          img.dataset.option = String.fromCharCode(97 + i); // a,b,c,d
+          Object.assign(img.style, { transition: 'none', width: '55%', maxWidth: '520px', maxHeight: '12vh', height: 'auto', marginTop: '6px' });
+
+          img.addEventListener('click', () => {
+            const mapQ1 = {
+              'section2/s2-q1-optiona.png': 'section2/s2-q1-optiona-wrong.png',
+              'section2/s2-q1-optionb.png': 'section2/s2-q1-optionb-correct.png',
+              'section2/s2-q1-optionc.png': 'section2/s2-q1-optionc-wrong.png',
+              'section2/s2-q1-optiond.png': 'section2/s2-q1-optiond-wrong.png'
+            };
+            const opts = qsa('img', rightPanel).filter(el => /section2\/s2-q1-option[abcd]\.png$/.test(el.getAttribute('src') || ''));
+            opts.forEach(el => { const f = el.getAttribute('src'); if (mapQ1[f]) el.setAttribute('src', mapQ1[f]); });
+
+            const ok = img.dataset.option === 'b';
+            if (ok) addPoint();
+            setModel(ok ? '#modelCheer' : '#modelSad');
+            playSfx(ok);
+
+            setTimeout(() => {
+              // Move to Q2
+              activityImg.style.transition = 'none';
+              activityImg.src = 'section2/s2-question-2.png';
+              setModel('#model2');
+
+              const swapToQ2 = {
+                'section2/s2-q1-optiona-wrong.png': 'section2/s2-q2-optiona.png',
+                'section2/s2-q1-optionb-correct.png': 'section2/s2-q2-optionb.png',
+                'section2/s2-q1-optionc-wrong.png': 'section2/s2-q2-optionc.png',
+                'section2/s2-q1-optiond-wrong.png': 'section2/s2-q2-optiond.png'
+              };
+              qsa('img', rightPanel).forEach(el => {
+                const cur = el.getAttribute('src');
+                if (swapToQ2[cur]) { const repl = el.cloneNode(true); el.replaceWith(repl); repl.setAttribute('src', swapToQ2[cur]); }
+              });
+              attachQ2Handlers();
+            }, 2000);
+          });
+          rightPanel.appendChild(img);
+        });
+      }
+    });
+
+    // Q2
+    function attachQ2Handlers() {
+      const q2Imgs = qsa('img', rightPanel).filter(el => /section2\/s2-q2-option[abcd]\.png$/.test(el.getAttribute('src') || ''));
+      q2Imgs.forEach(el => {
+        el.onclick = null;
+        el.addEventListener('click', () => {
+          const file = (el.getAttribute('src') || '').split('/').pop();
+          const choice = (file.match(/s2-q2-option([a-d])\.png/i) || [])[1];
+
+          const mapQ2 = {
+            'section2/s2-q2-optiona.png': 'section2/s2-q2-optiona-wrong.png',
+            'section2/s2-q2-optionb.png': 'section2/s2-q2-optionb-wrong.png',
+            'section2/s2-q2-optionc.png': 'section2/s2-q2-optionc-correct.png',
+            'section2/s2-q2-optiond.png': 'section2/s2-q2-optiond-wrong.png'
+          };
+          const opts = qsa('img', rightPanel).filter(n => /section2\/s2-q2-option[abcd]\.png$/.test(n.getAttribute('src') || ''));
+          opts.forEach(n => { const f = n.getAttribute('src'); if (mapQ2[f]) n.setAttribute('src', mapQ2[f]); });
+
+          const ok = choice === 'c';
+          if (ok) addPoint();
+          setModel(ok ? '#modelCheer' : '#modelSad');
+          playSfx(ok);
+
+          setTimeout(() => {
+            activityImg.style.transition = 'none';
+            activityImg.src = 'section2/s2-question-3.png'; // Q3 now section2
+            setModel('#model2');
+
+            const swapToQ3 = {
+              'section2/s2-q2-optiona-wrong.png': 'section2/s2-q3-optiona.png',
+              'section2/s2-q2-optionb-wrong.png': 'section2/s2-q3-optionb.png',
+              'section2/s2-q2-optionc-correct.png': 'section2/s2-q3-optionc.png',
+              'section2/s2-q2-optiond-wrong.png': 'section2/s2-q3-optiond.png'
+            };
+            qsa('img', rightPanel).forEach(n => {
+              const f = n.getAttribute('src');
+              if (swapToQ3[f]) { const repl = n.cloneNode(true); n.replaceWith(repl); repl.setAttribute('src', swapToQ3[f]); }
+            });
+            attachQ3Handlers();
+          }, 2000);
+        }, { once: true });
+      });
+    }
+
+    // Q3
+    function attachQ3Handlers() {
+      const q3Imgs = qsa('img', rightPanel).filter(el => /section2\/s2-q3-option[abcd]\.png$/.test(el.getAttribute('src') || ''));
+      q3Imgs.forEach(node => {
+        node.onclick = null;
+        node.addEventListener('click', () => {
+          const file = (node.getAttribute('src') || '').split('/').pop();
+          const m = file.match(/s2-q3-option([a-d])\.png/i);
+          const choice = m ? m[1] : null;
+
+          const mapQ3 = {
+            'section2/s2-q3-optiona.png': 'section2/s2-q3-optiona-wrong.png',
+            'section2/s2-q3-optionb.png': 'section2/s2-q3-optionb-wrong.png',
+            'section2/s2-q3-optionc.png': 'section2/s2-q3-optionc-correct.png',
+            'section2/s2-q3-optiond.png': 'section2/s2-q3-optiond-wrong.png'
+          };
+          const opts = qsa('img', rightPanel).filter(i => /section2\/s2-q3-option[abcd]\.png$/.test(i.getAttribute('src') || ''));
+          opts.forEach(i => { const f = i.getAttribute('src'); if (mapQ3[f]) i.setAttribute('src', mapQ3[f]); });
+
+          const ok = choice === 'c';
+          if (ok) addPoint();
+          setModel(ok ? '#modelCheer' : '#modelSad');
+          playSfx(ok);
+
+          setTimeout(showTally, 2000);
+        }, { once: true });
+      });
+    }
+
+    // Tally and End
+    function showTally() {
+      if (activityImg.src.includes('s2-question-3.png')) activityImg.style.display = 'none';
+      qsa('img', rightPanel).forEach(i => {
+        const src = i.getAttribute('src') || '';
+        if (i !== nextBtn && i !== s3ProceedBtn && /s2-q3-option/.test(src)) i.style.display = 'none';
+      });
+
+      const score = getScore();
+      let imgSrc = 'assets/oh-no.png';
+      let modelId = '#modelSad';
+      let sfx = sfxFail;
+
+      if (score === 0) { imgSrc = 'assets/oh-no.png'; modelId = '#modelSad'; sfx = sfxFail; }
+      else if (score === 1) { imgSrc = 'assets/good-try.png'; modelId = '#modelSad'; sfx = sfxFail; }
+      else if (score === 2) { imgSrc = 'assets/great-try.png'; modelId = '#modelCheer'; sfx = sfxHigh; }
+      else { imgSrc = 'assets/perfect-score.png'; modelId = '#modelVictory'; sfx = sfxHigh; }
+
+      setModel(modelId);
+
+      nextBtn.src = 'assets/next-button.png';
+
+      let scoreImg = qs('#scoreImage');
+      if (!scoreImg) {
+        scoreImg = document.createElement('img');
+        scoreImg.id = 'scoreImage';
+        scoreImg.className = 'score-image';
+        rightPanel.insertBefore(scoreImg, nextBtn);
+      }
+      scoreImg.src = imgSrc;
+      scoreImg.style.display = 'block';
+
+      nextBtn.style.display = 'block';
+
+      pauseReset(sfxCorrect); pauseReset(sfxWrong);
+      sfx.muted = isGameplayMuted; play(sfx);
+
+      nextBtn.onclick = null;
+      nextBtn.addEventListener('click', () => {
+        scoreImg.style.display = 'none';
+        nextBtn.style.display = 'none';
+
+        activityImg.style.display = 'block';
+        activityImg.style.width = '90%';
+        activityImg.style.maxHeight = '50vh';
+        activityImg.src = 'assets/end-message.png';
+
+        setModel('#modelWaving');
+        s3ProceedBtn.style.display = 'block';
+
+        endMessageAudio.muted = isGameplayMuted; play(endMessageAudio);
+      }, { once: true });
+    }
+
+    // Exit
+    exitButton.addEventListener('click', () => {
+      play(clickSound);
+      [bgMusic, activityAudio2, ifYouFeelAudio, goodLuckAudio, endMessageAudio, sfxCorrect, sfxWrong, sfxFail, sfxHigh].forEach(pauseReset);
+      sceneContainer.style.display = 'none';
+      musicIcons.style.display = 'none';
+      exitButton.style.display = 'none';
+      try { if (model) model.setAttribute('visible','false'); } catch(_){}
+      bgMusicIcon.src = 'assets/bg-music.png';
+      gameplayMusicIcon.src = 'assets/gameplay-music.png';
+    });
+
+    // Proceed to Section 3
+    s3ProceedBtn.addEventListener('click', () => { play(clickSound); window.location.href = 's3-introduction.html'; });
+
+    // Music toggles
+    bgMusicIcon.addEventListener('click', () => {
+      play(clickSound);
+      const muted = bgMusicIcon.src.includes('mute-bg-music.png');
+      if (muted) { bgMusicIcon.src = 'assets/bg-music.png'; play(bgMusic); }
+      else { bgMusicIcon.src = 'assets/mute-bg-music.png'; bgMusic.pause(); }
+    });
+    gameplayMusicIcon.addEventListener('click', () => {
+      play(clickSound);
+      const muted = gameplayMusicIcon.src.includes('mute-gameplay-music.png');
+      isGameplayMuted = !muted;
+      setMutedOn([activityAudio2, ifYouFeelAudio, goodLuckAudio, endMessageAudio], isGameplayMuted);
+      gameplayMusicIcon.src = muted ? 'assets/gameplay-music.png' : 'assets/mute-gameplay-music.png';
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <!-- Preload only the loading GIF early -->
+  <link rel="preload" href="assets/landscape-loading.gif" as="image">
+
+  <!-- Preload AR images and UI -->
+  <link rel="preload" href="learnmore/section4/s4-learn-more-1.png" as="image">
+  <link rel="preload" href="learnmore/section4/s4-learn-more-2-1.png" as="image">
+  <link rel="preload" href="learnmore/section4/s4-learn-more-2-2.png" as="image">
+  <link rel="preload" href="learnmore/section4/s4-learn-more-2-3.png" as="image">
+  <link rel="preload" href="assets/scan_marker.png" as="image">
+  <link rel="preload" href="assets/exit-button.png" as="image">
+  <link rel="preload" href="assets/bg-music.png" as="image">
+  <link rel="preload" href="assets/gameplay-music.png" as="image">
+  <link rel="preload" href="assets/next-button.png" as="image">
+  <link rel="preload" href="assets/back-button.png" as="image">
+  <link rel="preload" href="assets/activity-button.png" as="image">
+  <!-- New for Learn More home screen -->
+  <link rel="preload" href="assets/s4-lm-home.png" as="image">
+  <link rel="preload" href="assets/start-button.png" as="image">
+
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    body.loading .hide-until-ready { display: none !important; }
+
+    /* Loading overlay */
+    #loadingScreen {
+      position: fixed; inset: 0; background: #fbead1;
+      display: flex; justify-content: center; align-items: center;
+      z-index: 3000;
+    }
+    #loadingScreen img { width: 100%; height: auto; object-fit: contain; }
+
+    /* Home screen overlay (transparent so camera shows behind) */
+    #preLearnMore {
+      position: fixed; inset: 0; background: transparent;
+      display: none; flex-direction: column; justify-content: center; align-items: center;
+      gap: 12px; z-index: 2500; pointer-events: auto;
+    }
+    /* Sizes mirror s1-activity-latest.html */
+    #preLearnMore img#homeImageLM { width: 70%; max-width: 780px; height: auto; max-height: 55vh; object-fit: contain; display: block; }
+    #preLearnMore img#startBtnLM { width: 38vw; max-width: 145px; height: auto; cursor: pointer; display: block; }
+
+    /* Scan prompt overlay (only after Start) */
+    #scanMarkerPrompt {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; object-fit: contain; z-index: 2500; pointer-events: none;
+      display: none;
+    }
+
+    /* Top controls (music + exit) */
+    #musicIcons { position: fixed; top: 10px; left: 10px; display: flex; gap: 10px; z-index: 1001; }
+    .music-icon { width: 55px; height: auto; cursor: pointer; }
+    #exitButton { position: fixed; top: 10px; right: 10px; width: 55px; height: auto; z-index: 1001; cursor: pointer; }
+
+    /* Bottom buttons dock (right aligned) */
+    #navBtns {
+      position: fixed;
+      bottom: 2.5vh;
+      right: 3.5vw;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.2vw; /* tiny gap between Back and Next */
+      z-index: 1002;
+      pointer-events: auto;
+    }
+    /* Shift nav a bit left (closer to center) for pages 1 and 4 */
+    #navBtns.pull-left { right: 18vw; }
+    #navBtns img {
+      width: 40vw;
+      max-width: 150px;
+      height: auto;
+      cursor: pointer;
+    }
+    #navBtns #backBtn { display: none; } /* hidden on page 1 */
+
+    #activityButton { position: fixed; bottom: 10px; left: 10px; height: 55px; width: auto; z-index: 1002; cursor: pointer; display: block; }
+
+    /* Ensure a-scene is the base layer */
+    a-scene { position: absolute; top: 0; left: 0; z-index: 0; }
+  </style>
+</head>
+
+<body class="loading">
+  <!-- Loading: show ONLY this GIF at start -->
+  <div id="loadingScreen"><img src="assets/landscape-loading.gif" alt="Loading…"></div>
+
+  <!-- Home screen (shown after loader) -->
+  <div id="preLearnMore" aria-hidden="true">
+    <img id="homeImageLM" src="assets/s4-lm-home.png" alt="Learn More Home"/>
+    <img id="startBtnLM" src="assets/start-button.png" alt="Start"/>
+  </div>
+
+  <!-- Everything below is hidden until Start (via body.loading) -->
+  <!-- Overlays -->
+  <img id="scanMarkerPrompt" class="hide-until-ready" src="assets/scan_marker.png" alt="Scan the marker">
+
+  <!-- Audio -->
+  <audio id="bgMusic" class="hide-until-ready" loop src="sfx/bg-music.mp3"></audio>
+  <audio id="clickSound" class="hide-until-ready" src="sfx/button-click.mp3"></audio>
+
+  <!-- Top UI -->
+  <div id="musicIcons" class="hide-until-ready">
+    <img id="bgMusicIcon" class="music-icon" src="assets/bg-music.png" alt="BG Music">
+    <img id="gameplayMusicIcon" class="music-icon" src="assets/gameplay-music.png" alt="Gameplay Audio">
+  </div>
+  <img id="exitButton" class="hide-until-ready" src="assets/exit-button.png" alt="Exit">
+
+  <!-- Bottom UI (Back then Next; Back hidden until page 2) -->
+  <img id="activityButton" class="hide-until-ready" src="assets/activity-button.png" alt="Activity">
+  <div id="navBtns" class="hide-until-ready">
+    <img id="backBtn" src="assets/back-button.png" alt="Back">
+    <img id="nextBtn" src="assets/next-button.png" alt="Next">
+  </div>
+
+  <!-- AR Scene -->
+  <a-scene class="hide-until-ready" arjs embedded renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;">
+    <a-assets>
+      <!-- Start on 1-1 -->
+      <img id="learnMoreTex" src="learnmore/section4/s4-learn-more-1.png">
+    </a-assets>
+
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.0"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 1.0" position="1 2 1"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="-1 2 -1"></a-entity>
+
+    <!-- Learn More marker with stronger pose smoothing -->
+    <a-marker id="learnMoreMarker"
+              type="pattern"
+              url="models/marker/s4-learnmore.patt"
+              emitevents="true"
+              smooth="true"
+              smoothCount="30"
+              smoothTolerance="0.01"
+              smoothThreshold="5">
+      <!-- Lay the PNG flat on the marker, face up toward camera -->
+      <a-plane id="learnMorePlane"
+               position="0.5 0.01 0"
+               rotation="-90 0 0"
+               width="2.4" height="2.28"
+               visible="false"
+               material="shader: flat; color: #FFF; transparent:true; src: #learnMoreTex; side:double; alphaTest:0.01"
+               ui-texture-correct>
+      </a-plane>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // === sRGB + no tone mapping ===
+    AFRAME.registerComponent('ui-texture-correct', {
+      init: function () {
+        const el = this.el;
+        const apply = () => {
+          const mesh = el.getObject3D('mesh');
+          if (!mesh) return;
+          const mat = mesh.material;
+          if (mat && 'toneMapped' in mat) { mat.toneMapped = false; mat.needsUpdate = true; }
+          if (mat && mat.map) {
+            if (THREE.SRGBColorSpace) {
+              if (mat.map.colorSpace !== THREE.SRGBColorSpace) mat.map.colorSpace = THREE.SRGBColorSpace;
+            } else if (THREE.sRGBEncoding) {
+              if (mat.map.encoding !== THREE.sRGBEncoding) mat.map.encoding = THREE.sRGBEncoding;
+            }
+            mat.map.needsUpdate = true;
+          }
+        };
+        el.addEventListener('object3dset', apply);
+        el.addEventListener('model-loaded', apply);
+        el.addEventListener('materialtextureloaded', apply);
+        setTimeout(apply, 0);
+      }
+    });
+
+    // --- Element refs
+    const scanPrompt = document.getElementById('scanMarkerPrompt');
+    const loader = document.getElementById('loadingScreen');
+    const preLearnMore = document.getElementById('preLearnMore');
+    const startBtnLM = document.getElementById('startBtnLM');
+
+    const nextBtn = document.getElementById('nextBtn');
+    const backBtn = document.getElementById('backBtn');
+    const activityButton = document.getElementById('activityButton');
+    const exitButton = document.getElementById('exitButton');
+    const bgMusic = document.getElementById('bgMusic');
+    const clickSound = document.getElementById('clickSound');
+    const bgMusicIcon = document.getElementById('bgMusicIcon');
+    const gameplayMusicIcon = document.getElementById('gameplayMusicIcon');
+    const learnMoreMarker = document.getElementById('learnMoreMarker');
+    const learnMorePlane = document.getElementById('learnMorePlane');
+    const learnMoreTex = document.getElementById('learnMoreTex');
+
+    let musicStarted = false;
+    let hasScanned = false; // once true, keep scan overlay hidden
+let appClosed = false; // when true, ignore AR events and keep audio stopped
+
+    // page=1 => 1-1, page=2 => 1-2, page=3 => 2-1, page=4 => 2-2
+    let page = 1;
+
+    function playClick() { try { clickSound.currentTime = 0; clickSound.play().catch(()=>{}); } catch(e){} }
+
+    // --- Loader control: min 1s, max 3s ---
+    const LOADER_MIN_MS = 1000;
+    const LOADER_MAX_MS = 3000;
+    const loaderStart = Date.now();
+    let revealed = false;
+
+    function showHome() {
+      if (loader) loader.style.display = 'none';
+      if (preLearnMore) preLearnMore.style.display = 'flex';
+      // Keep body.loading so the rest of the UI stays hidden until Start
+    }
+    function hardReveal() { if (!revealed) { revealed = true; showHome(); } }
+
+    const hardCap = setTimeout(hardReveal, LOADER_MAX_MS);
+    window.addEventListener('load', () => {
+      const elapsed = Date.now() - loaderStart;
+      const wait = Math.max(0, LOADER_MIN_MS - elapsed);
+      setTimeout(() => { clearTimeout(hardCap); hardReveal(); }, wait);
+    });
+
+    // Fullscreen helper
+    function enterFullscreen() {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (req) { try { req.call(el); } catch(e){} }
+    }
+
+    // Start button -> go fullscreen, reveal the rest, show scan prompt
+    startBtnLM.addEventListener('click', () => {
+      playClick();
+      enterFullscreen();
+      if (preLearnMore) preLearnMore.style.display = 'none';
+      document.body.classList.remove('loading'); // reveal .hide-until-ready UI
+      // Ensure initial buttons reflect page 1
+      if (typeof setButtons === 'function') setButtons(1);
+      if (!hasScanned && scanPrompt) scanPrompt.style.display = 'block';
+    });
+
+    // --- Page-2-style height scale (used for pages that follow 1-2 sizing) ---
+    const PAGE2_HEIGHT_SCALE = 1.12; // tweak 1.08–1.15 as needed
+
+    // Helper: keep width and adjust height by image aspect * scale
+    function adjustPlaneHeightToImage(src, scale = 1) {
+      const img = new Image();
+      img.onload = () => {
+        const aspect = img.height / img.width; // h/w
+        const w = parseFloat(learnMorePlane.getAttribute('width')) || 2.0; // keep width
+        const h = w * aspect * scale;
+        learnMorePlane.setAttribute('height', h.toFixed(4));
+        learnMorePlane.emit('materialtextureloaded', {});
+      };
+      img.src = src;
+    }
+
+    // Cache page1 height so we can restore it later
+    const PAGE1_SRC = '#learnMoreTex';
+    const PAGE2_SRC = 'learnmore/section4/s4-learn-more-2-1.png';
+    const PAGE3_SRC = 'learnmore/section4/s4-learn-more-2-2.png';
+    const PAGE4_SRC = 'learnmore/section4/s4-learn-more-2-3.png';
+    const page1Height = parseFloat(learnMorePlane.getAttribute('height')) || 1.9;
+
+    // Navigation helpers
+    function setNavPositionForPage(pageNum) {
+      const nav = document.getElementById('navBtns');
+      if (!nav) return;
+      if (pageNum === 1 || pageNum === 4) { nav.classList.add('pull-left'); }
+      else { nav.classList.remove('pull-left'); }
+    }
+    function setButtons(pageNum) {
+      if (pageNum === 1) { backBtn.style.display = 'none'; nextBtn.style.display = 'block'; }
+      else if (pageNum === 2 || pageNum === 3) { backBtn.style.display = 'block'; nextBtn.style.display = 'block'; }
+      else if (pageNum === 4) { backBtn.style.display = 'block'; nextBtn.style.display = 'none'; }
+      setNavPositionForPage(pageNum);
+    }
+    function goToPage1() {
+      learnMorePlane.setAttribute('material', 'src', PAGE1_SRC);
+      learnMorePlane.setAttribute('height', page1Height.toString());
+      learnMorePlane.emit('materialtextureloaded', {});
+      page = 1; setButtons(page);
+    }
+    function goToPage2() {
+      learnMorePlane.setAttribute('material', 'src', PAGE2_SRC);
+      learnMorePlane.setAttribute('height', page1Height.toString());
+      learnMorePlane.emit('materialtextureloaded', {});
+      page = 2; setButtons(page);
+    }
+    function goToPage3() {
+      learnMorePlane.setAttribute('material', 'src', PAGE3_SRC);
+      // Follow page 1 dimensions exactly
+      learnMorePlane.setAttribute('height', page1Height.toString());
+      learnMorePlane.emit('materialtextureloaded', {});
+      page = 3; setButtons(page);
+    }
+    function goToPage4() {
+      learnMorePlane.setAttribute('material', 'src', PAGE4_SRC);
+      // Follow page 2-style sizing
+      adjustPlaneHeightToImage(PAGE4_SRC, PAGE2_HEIGHT_SCALE * 1.4);
+      page = 4; setButtons(page);
+    }
+
+    // Marker events
+    learnMoreMarker.addEventListener('markerFound', () => {
+      if (appClosed) { try { bgMusic.pause(); } catch(e){} return; }
+      if (!hasScanned && scanPrompt) scanPrompt.style.display = 'none';
+      hasScanned = true;
+
+      // Request fullscreen (in case Start wasn't tapped on iOS)
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) { elem.requestFullscreen().catch(() => {}); }
+      else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+      else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+
+      // Start bg music quietly
+      if (!musicStarted) {
+        bgMusic.volume = 0.1;
+        bgMusic.play().catch(() => {});
+        musicStarted = true;
+      }
+
+      // Show the AR plane content (keep 1-1 dimensions as-is)
+      learnMorePlane.setAttribute('visible', 'true');
+      learnMorePlane.emit('materialtextureloaded', {});
+      if (scanPrompt) scanPrompt.style.display = 'none';
+    });
+
+    learnMoreMarker.addEventListener('markerLost', () => {
+      // Hide the AR plane to prevent ghosting. Do not re-show the scan overlay.
+      learnMorePlane.setAttribute('visible', 'false');
+    });
+
+    // Bottom buttons
+    activityButton.addEventListener('click', () => {
+      playClick();
+      window.location.href = 's4-activity.html';
+    });
+
+    nextBtn.addEventListener('click', () => {
+      playClick();
+      if (page === 1) {
+        goToPage2();
+      } else if (page === 2) {
+        goToPage3();
+      } else if (page === 3) {
+        goToPage4();
+      }
+    });
+
+    backBtn.addEventListener('click', () => {
+      playClick();
+      if (page === 4) {
+        goToPage3(); // back to 2-1.png
+      } else if (page === 3) {
+        goToPage2(); // back to 1-2.png
+      } else if (page === 2) {
+        goToPage1(); // back to 1-1.png
+      }
+    });
+
+    // Music icon toggles
+    bgMusicIcon.addEventListener('click', () => {
+      playClick();
+      const isMuted = bgMusicIcon.src.includes('mute-bg-music.png');
+      if (isMuted) { bgMusicIcon.src = 'assets/bg-music.png'; bgMusic.play().catch(()=>{}); }
+      else { bgMusicIcon.src = 'assets/mute-bg-music.png'; bgMusic.pause(); }
+    });
+    gameplayMusicIcon.addEventListener('click', () => {
+      playClick();
+      const muted = gameplayMusicIcon.src.includes('mute-gameplay-music.png');
+      gameplayMusicIcon.src = muted ? 'assets/gameplay-music.png' : 'assets/mute-gameplay-music.png';
+    });
+
+    // Exit resets state
+    // Exit closes app: reset state, hide AR, show home, exit fullscreen
+exitButton.addEventListener('click', () => {
+  playClick();
+  appClosed = true;
+  // stop audio
+  try { bgMusic.pause(); bgMusic.currentTime = 0; } catch(e){}
+  try { clickSound.pause(); clickSound.currentTime = 0; } catch(e){}
+  musicStarted = false;
+  hasScanned = false;
+  page = 1;
+
+  // exit fullscreen
+  const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+  if (exitFS) { try { exitFS.call(document); } catch(e){} }
+
+  // hide all UI and AR elements
+  const hide = (sel) => { const el = document.querySelector(sel); if (el) el.style.display = 'none'; };
+  hide('#loadingScreen');
+  hide('#preLearnMore');
+  hide('#scanMarkerPrompt');
+  hide('#musicIcons');
+  hide('#navBtns');
+  hide('#activityButton');
+  hide('#exitButton');
+
+  // hide AR contents
+  try { if (learnMorePlane) learnMorePlane.setAttribute('visible', 'false'); } catch(e){}
+  const sceneEl = document.querySelector('a-scene');
+  if (sceneEl) { sceneEl.style.display = 'none'; }
+
+  // ensure all .hide-until-ready stay hidden
+  document.body.classList.add('loading');
+
+  // add a transparent blocker to guarantee a blank screen
+  let blocker = document.getElementById('exitBlocker');
+  if (!blocker) {
+    blocker = document.createElement('div');
+    blocker.id = 'exitBlocker';
+    blocker.style.position = 'fixed';
+    blocker.style.inset = '0';
+    blocker.style.background = 'transparent';
+    blocker.style.zIndex = '9999';
+    document.body.appendChild(blocker);
+  }
+});
+</script>
+</body>
+</html>
