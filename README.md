@@ -1,28 +1,15 @@
 # Study with Huna APP
-Study with Huna is an Augmented Reality (AR) study app designed to help students study through gamified content. It makes use of AR markers to make the app function, and it is currently running as a prototype. For now, it is using information from an Oral Communication reviewer for Senior High School levels, but in the future, the developer is opting to make it universal for any subject.
+Study with Huna is an Augmented Reality (AR) study app designed to help students study through gamified content. It makes use of AR markers to make the app function, and it is currently running as a prototype. It has 4 sections, with each section having an introduction page, learn more section, and finally, an activity area to test your knowledge. For now, it is using information from an Oral Communication reviewer for Senior High School levels, but in the future, the developer is opting to make it universal for any subject.
 
 Link to project: http://studywithhuna.online
 
 How It's Made:
-Tech used: HTML/CSS/JS + A-Frame + AR.js
+Tech used: HTML, CSS, JavaScript, A-Frame (three.js), AR.js, aframe-extras.loaders, Hostinger
 
-The app is currently running on hostinger under a customized domain name.
+Architecture
+* Multi-page, static: one HTML per part.
+* Scene & tracking: Each page mounts an <a-scene arjs embedded> and a single <a-marker type="pattern" url="...patt">.
 
-Here's where you can go to town on how you actually built this thing. Write as much as you can here, it's totally fine if it's not too much just make sure you write something. If you don't have too much experience on your resume working on the front end that's totally fine. This is where you can really show off your passion and make up for that ten fold.
-
-Optimizations
-(optional)
-
-You don't have to include this section but interviewers love that you can not only deliver a final product that looks great but also functions efficiently. Did you write something then refactor it later and the result was 5x faster than the original implementation? Did you cache your assets? Things that you write in this section are GREAT to bring up in interviews and you can use this section as reference when studying for technical interviews!
-
-Lessons Learned:
-No matter what your experience level, being an engineer means continuously learning. Every time you build something you always have those whoa this is awesome or wow I actually did it! moments. This is where you should share those moments! Recruiters and interviewers love to see that you're self-aware and passionate about growing.
-
-Examples:
-Take a look at these couple examples that I have in my own portfolio:
-
-Palettable: https://github.com/alecortega/palettable
-
-Twitter Battle: https://github.com/alecortega/twitter-battle
-
-Patch Panel: https://github.com/alecortega/patch-panel
+Markers Used:
+* Introductions: models/marker/huna-marker1.patt (S1 / index.html), huna-marker2.patt (S2 / s2-introduction.html), huna-marker3.patt (S3 / s3-introduction.html), huna-marker4.patt (S4 / s4-introduction.html).
+* Activities & Learn More: models/marker/s{N}-activity.patt, models/marker/s{N}-learnmore.patt
