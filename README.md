@@ -8,7 +8,7 @@ How It's Made: HTML, CSS, JavaScript, A-Frame (three.js), AR.js, aframe-extras.l
 Architecture
 * Multi-page, static: one HTML per part.
 
-Markers Used:
+Markers Used
 * Introductions: models/marker/huna-marker1.patt (S1 / index.html), huna-marker2.patt (S2 / s2-introduction.html), huna-marker3.patt (S3 / s3-introduction.html), huna-marker4.patt (S4 / s4-introduction.html).
 * Activities: models/marker/s1-activity.patt, models/marker/s2-activity.patt, models/marker/s3-activity.patt, models/marker/s4-activity.patt,
 * Learn More: models/marker/s1-learnmore.patt, models/marker/s2-learnmore.patt, models/marker/s3-learnmore.patt, models/marker/s4-learnmore.patt
