@@ -12,4 +12,17 @@ Architecture
 
 Markers Used:
 * Introductions: models/marker/huna-marker1.patt (S1 / index.html), huna-marker2.patt (S2 / s2-introduction.html), huna-marker3.patt (S3 / s3-introduction.html), huna-marker4.patt (S4 / s4-introduction.html).
-* Activities & Learn More: models/marker/s{N}-activity.patt, models/marker/s{N}-learnmore.patt
+* Activities: models/marker/s1-activity.patt, models/marker/s2-activity.patt, models/marker/s3-activity.patt, models/marker/s4-activity.patt,
+* Learn More: models/marker/s1-learnmore.patt, models/marker/s2-learnmore.patt, models/marker/s3-learnmore.patt, models/marker/s4-learnmore.patt
+
+Optimizations
+* Preload critical UI with <link rel="preload"> to avoid first-tap stutter.
+* Accurate colors for UI using ui-texture-correct (toneMapping off, sRGB textures).
+* Marker-follow without jitter using follow-marker to stabilize the UI plane while keeping it front-facing.
+* Scoped loading per page: each HTML only loads the assets it needs.
+
+Next-step improvements
+* Convert heavy PNGs to WebP/AVIF with PNG fallback.
+* Draco-compress GLBs; reuse a single avatar rig across sections.
+* Add a Service Worker to cache markers/UI/audio for flaky school Wi-Fi.
+* Idle prefetch the next dialogue image/audio after the first gesture.
