@@ -15,7 +15,7 @@ Markers Used:
 * Learn More: models/marker/s1-learnmore.patt, models/marker/s2-learnmore.patt, models/marker/s3-learnmore.patt, models/marker/s4-learnmore.patt
 
 Optimizations
-* Preload critical UI with <link rel="preload"> to avoid first-tap stutter.
+* Preload critical UI to avoid first-tap stutter.
 * Accurate colors for UI using ui-texture-correct (toneMapping off, sRGB textures).
 * Marker-follow without jitter using follow-marker to stabilize the UI plane while keeping it front-facing.
 * Scoped loading per page: each HTML only loads the assets it needs.
