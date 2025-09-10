@@ -8,7 +8,6 @@ Tech used: HTML, CSS, JavaScript, A-Frame (three.js), AR.js, aframe-extras.loade
 
 Architecture
 * Multi-page, static: one HTML per part.
-* Scene & tracking: Each page mounts an <a-scene arjs embedded> and a single <a-marker type="pattern" url="...patt">.
 
 Markers Used:
 * Introductions: models/marker/huna-marker1.patt (S1 / index.html), huna-marker2.patt (S2 / s2-introduction.html), huna-marker3.patt (S3 / s3-introduction.html), huna-marker4.patt (S4 / s4-introduction.html).
