@@ -1,7 +1,7 @@
 # Study with Huna APP
 Study with Huna is an Augmented Reality (AR) study app designed to help students study through gamified content. It makes use of AR markers to make the app function, and it is currently running as a prototype. It has 4 sections, with each section having an introduction page, learn more section, and finally, an activity area to test your knowledge. For now, it is using information from an Oral Communication reviewer for Senior High School levels, but in the future, the developer is opting to make it universal for any subject.
 
-Link to project: iop.upou.edu.ph/ar/studywithhuna
+Link to project: https://iop.upou.edu.ph/ar/studywithhuna/
 
 Link to access the reviewer for printing: https://drive.google.com/file/d/1FeMyfPPVzCpXbgmLSxZq7pEyR_cKqKQJ/view?usp=sharing
 
